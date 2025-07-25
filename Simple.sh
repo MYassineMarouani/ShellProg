@@ -1,81 +1,44 @@
-function menu()
+string final = "";
 
+if (col97Values.Count > 0)
 {
+    // 1. Faire SELECT v1 FROM t1 (sans WHERE)
+    HashSet<string> v1Values = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
-clear
+    using (SqlConnection conn = new SqlConnection("Data Source=TON_SERVEUR;Initial Catalog=TA_BASE;Integrated Security=SSPI"))
+    {
+        conn.Open();
 
-echo –e " \n\t******MENU ******\n "
+        using (SqlCommand cmd = new SqlCommand("SELECT v1 FROM t1", conn))
+        {
+            using (SqlDataReader reader = cmd.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    if (!reader.IsDBNull(0))
+                    {
+                        string value = reader.GetString(0).Trim();
+                        v1Values.Add(value);
+                    }
+                }
+            }
+        }
+    }
 
-echo –e " \n \t 1) Uid user "
+    // 2. Comparer avec ta liste C#
+    List<string> notFound = new List<string>();
+    foreach (string val in ktpCol97Values)
+    {
+        if (!v1Values.Contains(val.Trim()))
+        {
+            notFound.Add(val.Trim());
+        }
+    }
 
-echo –e " \n\t 2) Heure de connexion "
-
-echo –e " \n\t 3) Quitter "
-
-echo –e –n " \t\t Entrer votre choix: "
-
+    // 3. Concaténer les valeurs absentes dans v1
+    final = string.Join(",", notFound);
 }
-
-function verif_user()
-
+else
 {
-
-us=$1
-
-if `who | grep "^$us " > /dev/null`
-
-then uid=`grep "^$us:" /etc/passwd | awk -F: { print $3 }`
-
-else uid=-1
-
-fi
-
-#Ici la variable uid contiendra le uid du user sinon -1 mais uid variable globale
-
+    final = ""; // Liste vide
 }
-
-function heure_connexion()
-
-{
-
-us=$1
-
-who | grep "^$us " | awk ‘{ print " Heure_Connexion: " , $4 } ’
-
-}
-
-#Début du script
-
-clear
-
-while true ; do
-
-menu ; uid=0; read choix
-
-case $choix in
-
-1) read –p " Entrer un nom de user: " user
-
-verif_user $user
-
-test $uid –ge 0 && echo " UID de $user= $uid " && sleep 2 && continue
-
-echo " User $user non connecté ";;
-
-2) read –p " Entrer un nom de user: " user
-
-verif_user $user
-
-test $uid –ge 0 && heure_connexion $user && sleep 2 && continue
-
-echo " User $user non connecté ";;
-
-3) echo " Fin du script " ; exit 0 ;;
-
-*) echo " Choix erronné " ;;
-
-esac
-
-sleep 2
-
-done
