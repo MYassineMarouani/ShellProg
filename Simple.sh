@@ -1,19 +1,22 @@
 using System;
 using System.Data;
 using System.Data.SqlClient;
-using System.Data.OracleClient; // ou Oracle.ManagedDataAccess.Client si tu utilises ODP.NET
+using System.Data.Odbc;
 using System.Collections.Generic;
 using Microsoft.SqlServer.Dts.Runtime;
 
 public void Main()
 {
-    // === 1. Connexion Oracle et récupération des valeurs c1 ===
     List<string> oracleList = new List<string>();
-    using (OracleConnection conn = new OracleConnection("Data Source=TON_TNS;User Id=UTILISATEUR;Password=MOTDEPASSE;"))
+    List<string> sqlList = new List<string>();
+
+    // === 1. Connexion ODBC à Oracle ===
+    string oracleConnStr = "Driver={Oracle in OraClient11g_home1};Dbq=TON_TNS;Uid=UTILISATEUR;Pwd=MOTDEPASSE;";
+    using (OdbcConnection odbcConn = new OdbcConnection(oracleConnStr))
     {
-        conn.Open();
-        using (OracleCommand cmd = new OracleCommand("SELECT c1 FROM t1", conn))
-        using (OracleDataReader reader = cmd.ExecuteReader())
+        odbcConn.Open();
+        using (OdbcCommand cmd = new OdbcCommand("SELECT c1 FROM t1", odbcConn))
+        using (OdbcDataReader reader = cmd.ExecuteReader())
         {
             while (reader.Read())
             {
@@ -22,12 +25,12 @@ public void Main()
         }
     }
 
-    // === 2. Connexion SQL Server et récupération des valeurs c2 ===
-    List<string> sqlList = new List<string>();
-    using (SqlConnection conn = new SqlConnection("Server=TON_SERVEUR;Database=TA_BASE;User Id=UTILISATEUR;Password=MOTDEPASSE;"))
+    // === 2. Connexion SQL Server ===
+    string sqlConnStr = "Server=TON_SERVEUR;Database=TA_BASE;User Id=UTILISATEUR;Password=MOTDEPASSE;";
+    using (SqlConnection sqlConn = new SqlConnection(sqlConnStr))
     {
-        conn.Open();
-        using (SqlCommand cmd = new SqlCommand("SELECT c2 FROM t2", conn))
+        sqlConn.Open();
+        using (SqlCommand cmd = new SqlCommand("SELECT c2 FROM t2", sqlConn))
         using (SqlDataReader reader = cmd.ExecuteReader())
         {
             while (reader.Read())
@@ -37,22 +40,19 @@ public void Main()
         }
     }
 
-    // === 3. Comparaison : si c1 pas dans c2, on concatène dans la variable SSIS ===
+    // === 3. Comparaison et concaténation des c1 manquants ===
     List<string> missing = new List<string>();
-    foreach (string val in oracleList)
+    foreach (string c1 in oracleList)
     {
-        if (!sqlList.Contains(val))
+        if (!sqlList.Contains(c1))
         {
-            missing.Add(val);
+            missing.Add(c1);
         }
     }
 
-    // Création du résultat concaténé
     string result = string.Join(",", missing);
-    
-    // Affecter à la variable SSIS
-    Dts.Variables["User::ResultDiff"].Value = result;
 
+    // === 4. Affectation à la variable SSIS ===
+    Dts.Variables["User::ResultDiff"].Value = result;
     Dts.TaskResult = (int)ScriptResults.Success;
 }
-
