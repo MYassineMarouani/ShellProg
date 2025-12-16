@@ -1,51 +1,34 @@
 using System;
+using System.Data;
 using System.Data.SqlClient;
-using Microsoft.SqlServer.Dts.Runtime;
 
-public void Main()
+int totalUsers = 0;
+
+string connectionString =
+    "Data Source=SERVER_XYZ\\SQL2022;" +
+    "Initial Catalog=SalesManagementDB;" +
+    "Integrated Security=SSPI;";
+
+string query = @"
+    SELECT COUNT(*) AS UserCount
+    FROM APP_USERS
+";
+
+using (SqlConnection conn = new SqlConnection(connectionString))
 {
-    long resultCount = 0;
+    conn.Open();
 
-    // 🔹 Random example connection string
-    string connectionString =
-        "Data Source=SQLTEST01\\INST_A;" +
-        "Initial Catalog=SalesDB;" +
-        "Integrated Security=SSPI;";
-
-    // 🔹 Random example query
-    string query = @"
-        SELECT COUNT(*)
-        FROM Orders
-        WHERE OrderStatus = 'Completed'
-          AND OrderDate >= '2025-01-01';
-    ";
-
-    try
+    using (SqlCommand cmd = new SqlCommand(query, conn))
     {
-        using (SqlConnection conn = new SqlConnection(connectionString))
+        using (SqlDataReader reader = cmd.ExecuteReader())
         {
-            conn.Open();
-
-            using (SqlCommand cmd = new SqlCommand(query, conn))
+            if (reader.Read())
             {
-                resultCount = (long)cmd.ExecuteScalar();
+                totalUsers = reader.IsDBNull(0) ? 0 : reader.GetInt32(0);
             }
         }
-
-        // Optional: save to SSIS variable
-        // Dts.Variables["User::ResultCount"].Value = resultCount;
-
-        Dts.TaskResult = (int)ScriptResults.Success;
-    }
-    catch (Exception ex)
-    {
-        Dts.Events.FireError(
-            0,
-            "SSIS Script Task Error",
-            ex.Message,
-            string.Empty,
-            0);
-
-        Dts.TaskResult = (int)ScriptResults.Failure;
     }
 }
+
+// Example usage (HTML / log / console)
+string output = totalUsers.ToString();
